@@ -1,0 +1,9 @@
+﻿*.bin
+*.pth
+*.safetensors
+*.pkl
+*.h5
+*.ckpt
+__pycache__/
+*.pyc
+venv/
