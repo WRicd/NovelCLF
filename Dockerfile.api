@@ -1,0 +1,29 @@
+# Lightweight API-only image
+FROM python:3.11-slim
+
+LABEL maintainer="NovelCLF" \
+      description="Chinese novel genre classifier — FastAPI service"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt requirements-api.txt ./
+RUN pip install --no-cache-dir \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        -r requirements.txt \
+        -r requirements-api.txt
+
+COPY src/ src/
+COPY scripts/ scripts/
+COPY api.py .
+COPY 停用词表.txt .
+
+RUN useradd --create-home appuser
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

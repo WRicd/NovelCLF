@@ -26,6 +26,7 @@ PROCESSED_DIR = DATA_DIR / "processed"
 REPORTS_DIR = DATA_DIR / "reports"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 METRICS_DIR = OUTPUTS_DIR / "metrics"
+EXPERIMENTS_DIR = OUTPUTS_DIR / "experiments"
 FIGURES_DIR = OUTPUTS_DIR / "figures"
 WORDCLOUD_DIR = OUTPUTS_DIR / "wordclouds"
 MODELS_DIR = PROJECT_ROOT / "models"
@@ -40,10 +41,11 @@ MODEL_PATHS = {
     "svm_tfidf": MODELS_DIR / "svm_tfidf.joblib",
     "svm_tfidf_word": MODELS_DIR / "svm_tfidf_word.joblib",
     "bert_svm": MODELS_DIR / "bert_svm.joblib",
+    "bert_finetune": MODELS_DIR / "bert_finetune",
 }
 
 SUPPORTED_SPLITS = {"chunk_random", "book_holdout"}
-SUPPORTED_MODELS = {"nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm"}
+SUPPORTED_MODELS = {"nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm", "bert_finetune"}
 
 # Models that use word-level (jieba) TF-IDF features
 WORD_TFIDF_MODELS = {"nb_word", "svm_tfidf_word"}
@@ -55,6 +57,7 @@ def ensure_project_dirs() -> None:
         PROCESSED_DIR,
         REPORTS_DIR,
         METRICS_DIR,
+        EXPERIMENTS_DIR,
         FIGURES_DIR,
         WORDCLOUD_DIR,
         MODELS_DIR,

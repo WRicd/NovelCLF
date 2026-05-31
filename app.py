@@ -23,13 +23,14 @@ with st.sidebar:
     st.header("⚙️ 预测模型设置")
     model_name = st.selectbox(
         "选择预训练模型",
-        options=["nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm"],
+        options=["nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm", "bert_finetune"],
         format_func=lambda value: {
             "nb": "TF-IDF (字符) + Naive Bayes",
             "nb_word": "TF-IDF (分词) + Naive Bayes",
             "svm_tfidf": "TF-IDF (字符) + Linear SVM",
             "svm_tfidf_word": "TF-IDF (分词) + Linear SVM",
             "bert_svm": "BERT + SVM",
+            "bert_finetune": "BERT 端到端微调",
         }[value],
     )
     st.markdown("---")

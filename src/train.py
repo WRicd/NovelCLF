@@ -26,6 +26,12 @@ from .persistence import dump_model
 from .simple_nb import SimpleCharNaiveBayes
 
 
+def _import_bert_finetune():
+    """Lazy import for the bert_finetune module."""
+    from .bert_finetune import predict_bert_finetune, train_bert_finetune
+    return train_bert_finetune, predict_bert_finetune
+
+
 def optional_training_deps():
     """Return sklearn training dependencies when available."""
     try:
@@ -172,6 +178,9 @@ def predict_model(model_name: str, model, rows: list[dict[str, str]]):
     if model_name == "bert_svm":
         embeddings = extract_bert_embeddings([row["text"] for row in rows], BERT_MODEL_DIR)
         return model["classifier"].predict(embeddings)
+    if model_name == "bert_finetune":
+        _, predict_bert_finetune = _import_bert_finetune()
+        return predict_bert_finetune([row["text"] for row in rows], MODEL_PATHS["bert_finetune"])
     raise ValueError(f"Unsupported model: {model_name}")
 
 
@@ -186,9 +195,38 @@ def train_model(model_name: str, split: str = "chunk_random", dataset_path: Path
     labels = sorted({row["label"] for row in rows})
 
     train_start = time.perf_counter()
-    if model_name in _TFIDF_MODELS:
+    if model_name == "bert_finetune":
+        # BERT fine-tuning has its own training + evaluation loop
+        train_fn, predict_fn = _import_bert_finetune()
+        save_dir = MODEL_PATHS["bert_finetune"]
+        ft_result = train_fn(
+            train_texts=[row["text"] for row in train_rows],
+            train_labels=[row["label"] for row in train_rows],
+            test_texts=[row["text"] for row in test_rows],
+            test_labels=[row["label"] for row in test_rows],
+            label_list=labels,
+            bert_model_dir=BERT_MODEL_DIR,
+            save_dir=save_dir,
+            seed=RANDOM_SEED,
+        )
+        train_seconds = round(time.perf_counter() - train_start, 3)
+
+        y_true = [row["label"] for row in test_rows]
+        pred_start = time.perf_counter()
+        y_pred = list(predict_fn([row["text"] for row in test_rows], save_dir))
+        predict_seconds = round(time.perf_counter() - pred_start, 3)
+        metrics = evaluate_predictions(y_true, y_pred, labels)
+
+    elif model_name in _TFIDF_MODELS:
         model = train_tfidf_model(model_name, train_rows)
-    else:
+        train_seconds = round(time.perf_counter() - train_start, 3)
+
+        y_true = [row["label"] for row in test_rows]
+        pred_start = time.perf_counter()
+        y_pred = list(predict_model(model_name, model, test_rows))
+        predict_seconds = round(time.perf_counter() - pred_start, 3)
+        metrics = evaluate_predictions(y_true, y_pred, labels)
+    elif model_name == "bert_svm":
         # Load or compute full embeddings once
         if BERT_EMBEDDINGS_PATH.exists():
             import numpy as np
@@ -197,20 +235,19 @@ def train_model(model_name: str, split: str = "chunk_random", dataset_path: Path
             full_embeddings = extract_bert_embeddings([row["text"] for row in rows], BERT_MODEL_DIR)
             import numpy as np
             np.save(BERT_EMBEDDINGS_PATH, full_embeddings)
-            
+
         train_embeddings = full_embeddings[train_idx]
         model = train_bert_svm(train_rows, train_embeddings)
-    train_seconds = round(time.perf_counter() - train_start, 3)
+        train_seconds = round(time.perf_counter() - train_start, 3)
 
-    y_true = [row["label"] for row in test_rows]
-    pred_start = time.perf_counter()
-    if model_name in _TFIDF_MODELS:
-        y_pred = list(predict_model(model_name, model, test_rows))
-    else:
+        y_true = [row["label"] for row in test_rows]
+        pred_start = time.perf_counter()
         test_embeddings = full_embeddings[test_idx]
         y_pred = list(model["classifier"].predict(test_embeddings))
-    predict_seconds = round(time.perf_counter() - pred_start, 3)
-    metrics = evaluate_predictions(y_true, y_pred, labels)
+        predict_seconds = round(time.perf_counter() - pred_start, 3)
+        metrics = evaluate_predictions(y_true, y_pred, labels)
+    else:
+        raise ValueError(f"Unsupported model: {model_name}")
     metrics.update(
         {
             "model": model_name,
@@ -224,16 +261,18 @@ def train_model(model_name: str, split: str = "chunk_random", dataset_path: Path
         }
     )
 
-    model_path = MODEL_PATHS[model_name]
-    dump_model(
-        {
-            "model": model,
-            "model_name": model_name,
-            "split": split,
-            "labels": labels,
-        },
-        model_path,
-    )
+    # bert_finetune saves its own checkpoint; other models use dump_model
+    if model_name != "bert_finetune":
+        model_path = MODEL_PATHS[model_name]
+        dump_model(
+            {
+                "model": model,
+                "model_name": model_name,
+                "split": split,
+                "labels": labels,
+            },
+            model_path,
+        )
 
     metrics_path = METRICS_DIR / f"{model_name}_{split}.json"
     figure_path = FIGURES_DIR / f"{model_name}_{split}_confusion_matrix.png"

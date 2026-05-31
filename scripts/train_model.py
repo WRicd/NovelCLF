@@ -13,7 +13,7 @@ from src.train import train_model
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train and evaluate a NovelCLF model.")
-    parser.add_argument("--model", choices=["nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm"], default="nb")
+    parser.add_argument("--model", choices=["nb", "nb_word", "svm_tfidf", "svm_tfidf_word", "bert_svm", "bert_finetune"], default="nb")
     parser.add_argument("--split", choices=["chunk_random", "book_holdout"], default="chunk_random")
     parser.add_argument("--dataset", type=Path, default=None)
     return parser.parse_args()
